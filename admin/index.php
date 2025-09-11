@@ -1,5 +1,5 @@
 <?php
-session_start();
+
 require '../config.php';
 // ตรวจสอบสิทธิ์admin
 require 'auth.admin.php';

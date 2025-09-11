@@ -1,10 +1,10 @@
 
 <!DOCTYPE html>
 <?php
-    session_start();
+ 
         require '../config.php'; // เชื่อมต่อฐานข้อมูล
         require_once 'auth.admin.php';
-    // ลบสมำชกิ
+    // ลบสมาชิก
         if (isset($_GET['delete'])) {
     $user_id = $_GET['delete'];
     // ป้องกันลบตัวเอง
@@ -26,6 +26,10 @@
     <meta charset="UTF-8">
     <title>จัดกำรสมาชิก</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- // cdn sweetalert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         body {
             background: #f8f9fa;
@@ -77,14 +81,57 @@
             <td><?= $user['created_at'] ?></td>
             <td>
         <a href="edit_user.php?id=<?= $user['user_id'] ?>" class="btn btn-sm btn-warning">✏️ แก้ไข</a>
-        <a href="users.php?delete=<?= $user['user_id'] ?>" class="btn btn-sm btn-danger"
-    onclick="return confirm('คุณต้องการลบสมาชิกนี้หรือไม่?')">🗑️ ลบ</a>
-        </td>
+        <!-- <a href="users.php?delete=<?= $user['user_id'] ?>" class="btn btn-sm btn-danger"
+    onclick="return confirm('คุณต้องการลบสมาชิกนี้หรือไม่?')">🗑️ ลบ</a> -->
+    
+    <form action="delUser_Sweet.php" method="POST" style="display:inline;">
+<input type="hidden" name="u_id" value="<?php echo $user['user_id']; ?>">
+<button type="button" class="delete-button btn btn-danger btn-sm " data-user-id="<?php echo
+$user['user_id']; ?>">ลบ</button>
+    </form>
+    </td>
     </tr>
     <?php endforeach; ?>
         </tbody>
             </table>
     </div>
 <?php endif; ?>
+
+
+<script>
+// ฟังกช์ นั ส ำหรับแสดงกลอ่ งยนื ยัน SweetAlert2
+function showDeleteConfirmation(userId) {
+Swal.fire({
+title: 'คุณแน่ใจหรือไม่?',
+text: 'คุณจะไม่สำมำรถเรียกคืนข ้อมูลกลับได ้!',
+icon: 'warning',
+showCancelButton: true,
+confirmButtonText: 'ลบ',
+cancelButtonText: 'ยกเลิก',
+}).then((result) => {
+if (result.isConfirmed) {
+// หำกผใู้ชย้นื ยัน ใหส้ ง่ คำ่ ฟอรม์ ไปยัง delete.php เพื่อลบข ้อมูล
+const form = document.createElement('form');
+form.method = 'POST';
+form.action = 'delUser_Sweet.php';          //เปลี่ยนได้เเค่จุดที่คอมเม้นไว้
+const input = document.createElement('input');
+input.type = 'hidden';
+input.name = 'u_id';                      //ต้องตั้งชื่อให้ตรงกับฟอม
+input.value = userId;                    //ต้องตั้งชื่อให้ตรงกับฟอม
+form.appendChild(input);               
+document.body.appendChild(form);
+form.submit();
+}
+});
+}
+// แนบตัวตรวจจับเหตุกำรณ์คลิกกับองค์ปุ ่่มลบทั ่ ้งหมดที่มีคลำส delete-button
+const deleteButtons = document.querySelectorAll('.delete-button');
+deleteButtons.forEach((button) => {
+button.addEventListener('click', () => {
+const userId = button.getAttribute('data-user-id');
+showDeleteConfirmation(userId);
+});
+});
+</script>
 </body>
 </html>
