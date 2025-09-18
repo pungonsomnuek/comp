@@ -1,7 +1,6 @@
 <?php
 
 require '../config.php';
-// ตรวจสอบสิทธิ์admin
 require 'auth.admin.php';
 ?>
 <!DOCTYPE html>
