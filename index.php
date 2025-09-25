@@ -92,6 +92,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </span>
                 <a href="profile.php" class="btn btn-sm btn-info me-2">ข้อมูลส่วนตัว</a>
                 <a href="cart.php" class="btn btn-sm btn-warning me-2">ตะกร้าสินค้า</a>
+                <a href="orders.php" class="btn btn-sm btn-primary me-2">ดูประวัติการสั่งซื้อ</a>
                 <a href="logout.php" class="btn btn-sm btn-danger">ออกจากระบบ</a>
                 <?php else: ?>
                 <a href="login.php" class="btn btn-sm btn-success me-2">เข้าสู่ระบบ</a>
