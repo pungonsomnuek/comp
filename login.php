@@ -41,7 +41,7 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #b0ff05ff, #ffd500ff);
+            background: linear-gradient(135deg, #51e2ffff, #a831f3ff);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .login-card {
@@ -67,26 +67,18 @@
             border-radius: 10px;
             padding: 10px;
         }
-        .btn-primary {
-            width: 100%;
-            border-radius: 10px;
-            background-color: #1e8d91ff;
-            border: none;
-            font-weight: 600;
-            padding: 10px;
-        }
         .btn-primary:hover {
-            background-color: #ff0066ff;
+            background-color: #152f6b;
         }
         .btn-link {
             display: block;
             text-align: center;
             margin-top: 12px;
-            color: #d000ffff;
+            color: #1e3f91;
             font-weight: 500;
         }
         .btn-link:hover {
-            color: #dd5486ff;
+            color: #0a2a66;
         }
         .alert {
             max-width: 420px;
