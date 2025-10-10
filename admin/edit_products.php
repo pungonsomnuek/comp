@@ -1,178 +1,79 @@
 <?php
-    require '../config.php';
-    require 'auth.admin.php';
+session_start();
+echo '<pre>';
+print_r($_SESSION);
+echo '</pre>';
+exit;
 
-    // ตรวจสอบวำ่ ไดส้ ง่ id สนิ คำ้มำหรอื ไม่
+require '../config.php';
+require 'auth.admin.php';
+
+// ตรวจสิทธิ์
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit;
+}
+
 if (!isset($_GET['id'])) {
-    header("Location: products.php");
-exit;
+    header("Location: user.php");
+    exit;
 }
-    $product_id = $_GET['id'];
-    // ดงึขอ้ มลู สนิ คำ้
-    $stmt = $conn->prepare("SELECT * FROM products WHERE product_id = ?");
-    $stmt->execute([$product_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
-if (!$product) {
-    echo "<h3>ไม่พบข้อมูลสินค้า</h3>";
-exit;
-}
-    // ดึงหมวดหมู่ทั้งหมด
-$categories = $conn->query("SELECT * FROM categories")->fetchAll(PDO::FETCH_ASSOC);
 
-// เมื่อมีการส่งฟอร์ม
+$user_id = (int)$_GET['id'];
+
+// ✅ ดึงข้อมูลผู้ใช้
+$stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$user) {
+    die("❌ ไม่พบข้อมูลผู้ใช้");
+}
+
+// ✅ อัปเดตข้อมูลเมื่อกดบันทึก
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $full_name = $_POST['full_name'];
+    $email = $_POST['email'];
+    $role = $_POST['role'];
 
-    $name        = trim($_POST['product_name']);
-    $description = trim($_POST['description']);
-    $price       = (float)$_POST['price'];
-    $stock       = (int)$_POST['stock'];
-    $category_id = (int)$_POST['category_id'];
+    $update = $conn->prepare("UPDATE users SET full_name = ?, email = ?, role = ? WHERE user_id = ?");
+    $update->execute([$full_name, $email, $role, $user_id]);
 
-    // ค่ารูปเดิมจากฟอร์ม
-    $oldImage    = $_POST['old_image'] ?? null;
-    $removeImage = isset($_POST['remove_image']); // true/false
-
-    if ($name && $price > 0) {
-
-        // เตรียมตัวแปรรูปที่จะบันทึก
-        $newImageName = $oldImage; // default: คงรูปเดิมไว้
-
-        // 1) ถ้ามีติ๊ก "ลบรูปเดิม" → ตั้งให้เป็น null
-        if ($removeImage) {
-            $newImageName = null;
-        }
-
-        // 2) ถ้ามีอัปโหลดไฟล์ใหม่ → ตรวจแล้วเซฟไฟล์และตั้งชื่อใหม่ทับค่า
-        if (!empty($_FILES['product_image']['name'])) {
-            $file = $_FILES['product_image'];
-
-            // ตรวจชนิดไฟล์แบบง่าย (แนะนำ: ตรวจ MIME จริงด้วย finfo)
-            $allowed = ['image/jpeg', 'image/png'];
-
-            if (in_array($file['type'], $allowed, true) && $file['error'] === UPLOAD_ERR_OK) {
-                // สร้างชื่อไฟล์ใหม่
-                $ext          = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $newImageName = 'product_' . time() . '.' . $ext;
-                $uploadDir    = realpath(__DIR__ . '/../product_images');
-                $destPath     = $uploadDir . DIRECTORY_SEPARATOR . $newImageName;
-
-                // ย้ายไฟล์อัปโหลด
-                if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-                    // ถ้าย้ายไม่ได้ อาจตั้ง flash message แล้วคงใช้รูปเดิมไว้
-                    $newImageName = $oldImage;
-                }
-            }
-        }
-
-        // อัปเดต DB
-        $sql  = "UPDATE products
-                SET product_name = ?, description = ?, price = ?, stock = ?, category_id = ?, image = ?
-                WHERE product_id = ?";
-        $args = [$name, $description, $price, $stock, $category_id, $newImageName, $product_id];
-
-        $stmt = $conn->prepare($sql);
-        $stmt->execute($args);
-
-        // ลบไฟล์เก่าในดิสก์ ถ้า:
-        // - มีรูปเดิม ($oldImage) และ
-        // - เกิดการเปลี่ยนรูป (อัปโหลดใหม่หรือสั่งลบรูปเดิม)
-        if (!empty($oldImage) && $oldImage !== $newImageName) {
-            $baseDir  = realpath(__DIR__ . '/../product_images');
-            $filePath = realpath($baseDir . DIRECTORY_SEPARATOR . $oldImage);
-
-            if ($filePath && strpos($filePath, $baseDir) === 0 && is_file($filePath)) {
-                @unlink($filePath);
-            }
-        }
-
-        header("Location: products.php");
-        exit;
-    }
+    header("Location: user.php");
+    exit;
 }
-
-
-
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8">
-    <title>แก้ไขสินค้า</title>
+    <title>แก้ไขสมาชิก</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
-<body class="container mt-4">
-    <h2>แก้ไขสินค้า</h2>
-    <a href="products.php" class="btn btn-secondary mb-3">← กลับไปยังรายการสินค้า</a>
-
-    <form method="post" enctype="multipart/form-data" class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label">ชื่อสินค้า</label>
-            <input type="text" name="product_name" class="form-control"
-                value="<?= htmlspecialchars( $product['product_name']) ?>" required>
-        </div>
-
-        <div class="col-md-3">
-            <label class="form-label">ราคา</label>
-            <input type="number" step="0.01" name="price" class="form-control" value="<?= $product['price'] ?>"
-                required>
-        </div>
-
-        <div class="col-md-3">
-            <label class="form-label">จำนวนในคลัง</label>
-            <input type="number" name="stock" class="form-control" value="<?= $product['stock']?>" required>
-        </div>
-
-        <div class="col-md-6">
-            <label class="form-label">หมวดหมู่</label>
-            <select name="category_id" class="form-select" required>
-                <?php foreach ($categories as $cat): ?>
-                <option value="<?= $cat['category_id'] ?>"
-                    <?= $product['category_id'] === $cat['category_id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($cat['category_name']) ?>
-                </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-
-        <div class="col-12">
-            <label class="form-label">รายละเอียดสินค้า</label>
-            <textarea name="description" class="form-control"
-                rows="4"><?= htmlspecialchars($product['description']) ?></textarea>
-        </div>
-
-        <!--TODO ===div แสดงรูปเดิม + เก็บค่ำเก่ำ -->
-        <div class="col-md-6">
-            <label class="form-label d-block">รูปปัจจุบัน</label>
-            <?php if (!empty($product['image'])): ?>
-            <img src="../product_images/<?= htmlspecialchars($product['image']) ?>" width="120" height="120"
-                class="rounded mb-2">
-            <?php else: ?>
-            <span class="text-muted d-block mb-2">ไม่มีรูป</span>
-            <?php endif; ?>
-            <input type="hidden" name="old_image" value="<?= htmlspecialchars($product['image']) ?>">
-        </div>
-
-        <!--TODO === อัปโหลดรูปใหม่ (ทำงเลือก) -->
-        <div class="col-md-6">
-            <label class="form-label">อัปโหลดรูปใหม่ (jpg, png)</label>
-            <input type="file" name="product_image" class="form-control">
-            <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" name="remove_image" id="remove_image" value="1">
-                <label class="form-check-label" for="remove_image">ลบรูปเดิม</label>
+<body class="container mt-5">
+    <div class="card shadow p-4">
+        <h3 class="mb-4">✏️ แก้ไขข้อมูลสมาชิก</h3>
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">ชื่อ-นามสกุล</label>
+                <input type="text" name="full_name" value="<?= htmlspecialchars($user['full_name']) ?>" class="form-control" required>
             </div>
-        </div>
-
-
-
-
-
-        <div class="col-12">
-            <button type="submit" class="btn btn-primary">บันทึกกการแก้ไข</button>
-        </div>
-    </form>
+            <div class="mb-3">
+                <label class="form-label">อีเมล</label>
+                <input type="email" name="email" value="<?= htmlspecialchars($user['email']) ?>" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">สิทธิ์การใช้งาน</label>
+                <select name="role" class="form-select" required>
+                    <option value="member" <?= $user['role'] === 'member' ? 'selected' : '' ?>>member</option>
+                    <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>admin</option>
+                </select>
+            </div>
+            <div class="d-flex justify-content-between">
+                <a href="user.php" class="btn btn-secondary">⬅️ กลับ</a>
+                <button type="submit" class="btn btn-primary">💾 บันทึกการแก้ไข</button>
+            </div>
+        </form>
+    </div>
 </body>
-
 </html>

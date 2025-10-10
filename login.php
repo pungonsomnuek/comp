@@ -1,5 +1,7 @@
 <?php 
-    session_start();
+    // ✅ ทำให้ session ใช้งานได้ในทุกโฟลเดอร์
+ini_set('session.cookie_path', '/');
+session_start();
     require_once 'config.php';
 
     $error = '';

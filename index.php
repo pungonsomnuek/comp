@@ -2,8 +2,8 @@
 session_start();
 require_once 'config.php';
 
-// ตรวจสอบการเข้าสู่ระบบ
-$isLoggedIn = isset($_SESSION['user_id']);  // ★ เปลี่ยนให้ใช้ชื่อตัวแปรเดียว
+$isLoggedIn = isset($_SESSION['user_id']);
+$user_id = $_SESSION['user_id'] ?? 0;
 
 // ดึงสินค้า
 $stmt = $conn->query("
@@ -13,184 +13,234 @@ $stmt = $conn->query("
     ORDER BY p.created_at DESC
 ");
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ดึงสินค้าที่อยู่ในรายการโปรดของสมาชิก
+$wishlist_ids = [];
+if ($isLoggedIn) {
+    $w = $conn->prepare("SELECT product_id FROM wishlist WHERE user_id=?");
+    $w->execute([$user_id]);
+    $wishlist_ids = array_column($w->fetchAll(PDO::FETCH_ASSOC), 'product_id');
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หน้าหลัก</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-    <!-- ★ Icons -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lovely Shop | หน้าหลัก</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+body {
+    background: #fff6fb;
+    font-family: 'Segoe UI', sans-serif;
+}
 
-    <style>
-    .product-card {
-        background: #fff;
-        border: 1px solid #e5e5e5;
-        border-radius: .5rem;
-    }
+/* Navbar */
+.navbar {
+    background: linear-gradient(90deg, #ffb6c1, #ffd6e0);
+    padding: 0.8rem 1rem;
+}
+.navbar-brand {
+    color: #fff !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+    font-weight: bold;
+    font-size: 1.4rem;
+}
+.navbar .btn {
+    border-radius: 20px;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    transition: all 0.2s;
+}
+.navbar .btn:hover {
+    transform: translateY(-2px);
+}
 
-    .product-thumb {
-        height: 180px;
-        object-fit: cover;
-        border-radius: .5rem;
-    }
+/* Product Cards */
+.product-card {
+    background: #fff;
+    border: none;
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: 0.3s;
+    box-shadow: 0 6px 12px rgba(255, 182, 193, 0.25);
+}
+.product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 20px rgba(255, 182, 193, 0.4);
+}
+.product-thumb {
+    height: 230px;
+    object-fit: cover;
+}
+.product-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #444;
+}
+.price {
+    font-size: 1.2rem;
+    color: #ff4f70;
+    font-weight: bold;
+}
 
-    .product-meta {
-        font-size: .75rem;
-        letter-spacing: .05em;
-        color: #8a8f98;
-        text-transform: uppercase;
-    }
+/* Wishlist button */
+.btn-wishlist {
+    border: none;
+    background: none;
+    font-size: 1.7rem;
+    color: #d6d6d6;
+    transition: all 0.25s ease;
+}
+.btn-wishlist:hover {
+    color: #ff7d9a;
+    transform: scale(1.2);
+}
+.btn-wishlist.active {
+    color: #ff4f70;
+    animation: heartbeat 0.4s ease;
+}
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.3); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
 
-    .product-title {
-        font-size: 1rem;
-        margin: .25rem 0 .5rem;
-        font-weight: 600;
-        color: #222;
-    }
+/* Buttons */
+.btn-pink {
+    background: #ff9ebb;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    transition: 0.2s;
+}
+.btn-pink:hover {
+    background: #ff7aa1;
+}
 
-    .price {
-        font-weight: 700;
-    }
+.btn-outline-primary {
+    border-color: #ff9ebb;
+    color: #ff7aa1;
+    border-radius: 20px;
+}
+.btn-outline-primary:hover {
+    background: #ff9ebb;
+    color: white;
+}
 
-    .rating i {
-        color: #ffc107;
-    }
-
-    /* ดาวสีทอง */
-    .wishlist {
-        color: #b9bfc6;
-    }
-
-    .wishlist:hover {
-        color: #ff5b5b;
-    }
-
-    .badge-top-left {
-        position: absolute;
-        top: .5rem;
-        left: .5rem;
-        z-index: 2;
-        border-radius: .375rem;
-    }
-    </style>
+/* Footer */
+footer {
+    background: #fff;
+    color: #999;
+    border-top: 2px solid #ffe3ed;
+}
+</style>
 </head>
 
-<body style="background:#f8f9fa;font-family:'Segoe UI',sans-serif;">
+<body>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="index.php">My Shop</a>
-            <div class="d-flex">
-                <?php if ($isLoggedIn): ?>
-                <span class="navbar-text text-white me-3">
-                    👋 ยินดีต้อนรับ <?= htmlspecialchars($_SESSION['username']) ?> (<?= $_SESSION['role'] ?>)
-                </span>
-                <a href="profile.php" class="btn btn-sm btn-info me-2">ข้อมูลส่วนตัว</a>
-                <a href="cart.php" class="btn btn-sm btn-warning me-2">ตะกร้าสินค้า</a>
-                <a href="orders.php" class="btn btn-sm btn-primary me-2">ดูประวัติการสั่งซื้อ</a>
-                <a href="logout.php" class="btn btn-sm btn-danger">ออกจากระบบ</a>
-                <?php else: ?>
-                <a href="login.php" class="btn btn-sm btn-success me-2">เข้าสู่ระบบ</a>
-                <a href="register.php" class="btn btn-sm btn-primary">สมัครสมาชิก</a>
-                <?php endif; ?>
-            </div>
-        </div>
-    </nav>
-
-    <header class="container text-center my-5">
-        <h1 class="fw-bold" style="color:#333;">🛍️ รายการสินค้า</h1>
-        <p class="text-muted">เลือกซื้อสินค้าที่คุณชื่นชอบได้เลย</p>
-    </header>
-
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light shadow-sm">
     <div class="container">
-        <div class="row g-4">
-            <?php foreach ($products as $p): ?>
-            <?php
-        $img = !empty($p['image'])
-            ? 'product_images/' . rawurlencode($p['image'])
-            : 'product_images/no-image.jpg';
-
-        $isNew = isset($p['created_at']) && (time() - strtotime($p['created_at']) <= 7*24*3600);
-        $isHot = (int)$p['stock'] > 0 && (int)$p['stock'] < 5;
-
-        $rating = isset($p['rating']) ? (float)$p['rating'] : 4.5;
-        $full   = floor($rating);
-        $half   = ($rating - $full) >= 0.5 ? 1 : 0;
-        ?>
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card product-card h-100 position-relative">
-                    <?php if ($isNew): ?>
-                    <span class="badge bg-success badge-top-left">NEW</span>
-                    <?php elseif ($isHot): ?>
-                    <span class="badge bg-danger badge-top-left">HOT</span>
-                    <?php endif; ?>
-
-                    <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>" class="p-3 d-block">
-                        <img src="<?= htmlspecialchars($img) ?>" alt="<?= htmlspecialchars($p['product_name']) ?>"
-                            class="img-fluid w-100 product-thumb">
-                    </a>
-
-                    <div class="px-3 pb-3 d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <div class="product-meta">
-                                <?= htmlspecialchars($p['category_name'] ?? 'Category') ?>
-                            </div>
-                            <button class="btn btn-link p-0 wishlist" title="Add to wishlist" type="button">
-                                <i class="bi bi-heart"></i>
-                            </button>
-                        </div>
-
-                        <a class="text-decoration-none" href="product_detail.php?id=<?= (int)$p['product_id'] ?>">
-                            <div class="product-title">
-                                <?= htmlspecialchars($p['product_name']) ?>
-                            </div>
-                        </a>
-
-                        <div class="rating mb-2">
-                            <?php for ($i=0; $i<$full; $i++): ?><i class="bi bi-star-fill"></i><?php endfor; ?>
-                            <?php if ($half): ?><i class="bi bi-star-half"></i><?php endif; ?>
-                            <?php for ($i=0; $i<5-$full-$half; $i++): ?><i class="bi bi-star"></i><?php endfor; ?>
-                        </div>
-
-                        <div class="price mb-3">
-                            <?= number_format((float)$p['price'], 2) ?> บาท
-                        </div>
-
-                        <div class="mt-auto d-flex gap-2">
-                            <?php if ($isLoggedIn): ?>
-                            <form action="cart.php" method="post" class="d-inline-flex gap-2">
-                                <input type="hidden" name="product_id" value="<?= (int)$p['product_id'] ?>">
-                                <input type="hidden" name="quantity" value="1">
-                                <button type="submit" class="btn btn-sm btn-success">เพิ่มในตะกร้า</button>
-                            </form>
-                            <?php else: ?>
-                            <small class="text-muted">เข้าสู่ระบบเพื่อสั่งซื้อ</small>
-                            <?php endif; ?>
-                            <a href="product_detail.php?id=<?= (int)$p['product_id'] ?>"
-                                class="btn btn-sm btn-outline-primary ms-auto">ดูรายละเอียด</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-
-            <?php if (count($products) === 0): ?>
-            <div class="col-12">
-                <div class="alert alert-warning text-center shadow-sm">ยังไม่มีสินค้าในระบบ</div>
-            </div>
-            <?php endif; ?>
+        <a class="navbar-brand fw-bold text-dark" href="index.php">🌸 My Lovely Shop</a>
+        <div class="d-flex">
+            <a href="wishlist.php" class="btn btn-outline-danger btn-sm me-2">
+                ❤️ รายการโปรด <span id="wishlist-count" class="badge bg-danger ms-1">0</span>
+            </a>
+            <a href="cart.php" class="btn btn-outline-warning btn-sm me-2">
+                🛒 ตะกร้าสินค้า <span id="cart-count" class="badge bg-warning text-dark ms-1">0</span>
+            </a>
+            <a href="logout.php" class="btn btn-outline-dark btn-sm">ออกจากระบบ</a>
         </div>
     </div>
+</nav>
 
-    <footer class="bg-white text-center text-muted py-3 mt-5 shadow-sm">
-        &copy; <?= date("Y") ?> My Shop | Nawapath
-    </footer>
+
+
+<!-- Header -->
+<header class="container text-center my-5">
+    <h1 class="fw-bold" style="color:#ff4f70;">🛍️ สินค้าทั้งหมด</h1>
+    <p class="text-muted">เลือกของที่คุณรักได้เลย 💖</p>
+</header>
+
+<!-- Product Grid -->
+<div class="container">
+    <div class="row g-4">
+        <?php foreach ($products as $p): 
+            // ป้องกันชื่อไฟล์ซ้ำ .jpg.jpg และ encode เฉพาะช่องว่าง/อักขระพิเศษ
+            $imgFile = !empty($p['image']) ? $p['image'] : 'no-image.jpg';
+            // ลบ .jpg.jpg ซ้ำ (ถ้ามี)
+            $imgFile = preg_replace('/(\.jpg|\.png){2,}$/i', '$1', $imgFile);
+            $img = 'product_images/' . rawurlencode($imgFile);
+            $isFav = in_array($p['product_id'], $wishlist_ids);
+        ?>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="product-card position-relative">
+                <img src="<?= htmlspecialchars($img) ?>" class="product-thumb w-100" alt="<?= htmlspecialchars($imgFile) ?>"
+                     onerror="this.onerror=null;this.src='product_images/no-image.jpg';this.alt='ไม่พบรูป';">
+                <!-- debug: <small style='color:red;'><?= htmlspecialchars($img) ?></small> -->
+                <button class="btn-wishlist position-absolute top-0 end-0 m-2 <?= $isFav ? 'active' : '' ?>"
+                        data-id="<?= $p['product_id'] ?>">
+                    <i class="bi bi-heart-fill"></i>
+                </button>
+                <div class="p-3 text-center">
+                    <div class="product-title"><?= htmlspecialchars($p['product_name']) ?></div>
+                    <div class="text-muted small mb-2"><?= htmlspecialchars($p['category_name']) ?></div>
+                    <div class="price mb-3"><?= number_format($p['price'],2) ?> ฿</div>
+                    <a href="product_detail.php?id=<?= $p['product_id'] ?>" class="btn btn-outline-primary btn-sm">ดูรายละเอียด</a>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="text-center py-4 mt-5">
+    © <?= date('Y') ?> My Lovely Shop 🌷 | Designed with 💕
+</footer>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function () {
+    $(".btn-wishlist").on("click", function () {
+        const btn = $(this);
+        const productId = btn.data("id");
+
+        // ส่งข้อมูลไปยัง wishlist_add.php
+        $.ajax({
+            url: "wishlist_add.php",
+            method: "POST",
+            data: { id: productId },
+            success: function (response) {
+                response = response.trim();
+
+                if (response === "added") {
+                    btn.addClass("active");
+                    btn.attr("title", "ลบออกจากรายการโปรด");
+                } else if (response === "removed") {
+                    btn.removeClass("active");
+                    btn.attr("title", "เพิ่มในรายการโปรด");
+                }
+
+                // อัปเดตจำนวนรายการโปรด (นับใหม่)
+                $.get("wishlist_count.php", function (count) {
+                    $("#wishlist-count").text(count);
+                });
+            },
+            error: function () {
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์ 💔");
+            }
+        });
+    });
+});
+</script>
+
+
+
 
 </body>
-
 </html>
